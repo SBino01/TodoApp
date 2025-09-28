@@ -16,8 +16,8 @@ load_dotenv()
 
 router = APIRouter()
 
-SECRET_KEY = "039edb69126c47c279c946169c899e6a72e06d0ed7d16fa0ce502418b55c8e1a"
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
