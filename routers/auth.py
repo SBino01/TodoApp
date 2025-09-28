@@ -1,4 +1,5 @@
 from typing import Annotated
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from starlette import status
@@ -7,8 +8,16 @@ from models import Users
 from database import SessionLocal
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt, JWTError
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 router = APIRouter()
+
+SECRET_KEY = "039edb69126c47c279c946169c899e6a72e06d0ed7d16fa0ce502418b55c8e1a"
+ALGORITHM = "HS256"
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
@@ -40,8 +49,19 @@ def authenticate_user(username: str, password:str, db):
     return True
 
 
+def create_access_token(username: str, user_id: int, expires_delta: timedelta):
+    encode = {
+        'sub': username,
+        'id': user_id,
+    }
+
+    expires = datetime.now(tz=timezone.utc) + expires_delta
+    encode.update({'exp': expires})
+    return jwt.encode(encode, key=SECRET_KEY, algorithm=ALGORITHM)
+
+
 @router.post("/auth/", status_code=status.HTTP_201_CREATED)
-async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
+async def create_user(db: db_dependency, create_user_request: CreateUserRequest): # pyright: ignore[reportInvalidTypeForm]
     create_user_model = Users(
         email = create_user_request.email,
         username = create_user_request.username,
@@ -57,8 +77,10 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
 
 @router.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency):
+async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency): # pyright: ignore[reportInvalidTypeForm]
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         return 'Failed Authentication'
-    return 'Successful Authentication'
+    
+    token = create_access_token(user.username, user.id, timedelta(minutes=20))
+    return token
